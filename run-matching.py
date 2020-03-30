@@ -2,7 +2,6 @@
 
 import csv
 import uuid
-import time
 import random
 from pathlib import Path
 from itertools import product
@@ -43,7 +42,7 @@ def createMatch(db, users):
 
     # update users
     for user in users:
-        userRef = db.collections('users').document(user[0])
+        userRef = db.collection('users').document(user[0])
         batch.update(userRef, {
             'currentMatching': TARGET_MATCHING,
             'currentMatchId': matchId
@@ -63,6 +62,7 @@ def queueSignups(signupQueue, path):
     # shuffle and queue signups
     random.shuffle(signups)
     signupQueue.extend(signups)
+
 
 def runAlgorithm(db):
     signupQueue = deque()
@@ -86,11 +86,12 @@ def runAlgorithm(db):
             if Path(path).is_file(): 
                 queueSignups(signupQueue, path)
             
-            # products matches
+            # build matches from deque
             bucketMatchCount = 0
             while len(signupQueue) >= 10:
                 matchCount += 1
                 bucketMatchCount += 1
+
                 createMatch(db, [
                     signupQueue.popleft(),
                     signupQueue.popleft(),
@@ -115,9 +116,7 @@ if __name__ == '__main__':
         print('Connected app to firestore...')
 
         # initiate algorithm
-        # runAlgorithm(db)
-    
+        runAlgorithm(db)
+
     except Exception as error:
         print('ERROR: ' + str(error))
-
-    # ALGORITHM: loop through all bucket permutations, read csv file into list, generate random list of indices, randomly add rows into queue using indices, while queue is greater than 6: pop 4 elements and create match, continue
