@@ -23,7 +23,7 @@ def getMetadata():
 
 
 def writeMetadata(timestamp):
-    with open('./signup-data/' + TARGET_MATCHING + '/metadata', 'w+') as metadata:
+    with open('./signup-data/' + TARGET_MATCHING + '/metadata', 'w') as metadata:
         metadata.write(str(timestamp) + '\n')
 
 
