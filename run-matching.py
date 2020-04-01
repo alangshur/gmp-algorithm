@@ -102,6 +102,21 @@ def runAlgorithm(db):
             print('File ' + str(bucketFile) + '/34263: Created ' \
                 + str(bucketMatchCount) + ' matches.')
 
+    while len(signupQueue) > 0:
+        if len(signupQueue) % 3 == 0:
+            createMatch(db, [
+                signupQueue.popleft(),
+                signupQueue.popleft(),
+                signupQueue.popleft()
+            ])
+        else:
+            createMatch(db, [
+                signupQueue.popleft(),
+                signupQueue.popleft(),
+                signupQueue.popleft(),
+                signupQueue.popleft()
+            ])
+
     print('Algorithm finished! Created ' + str(matchCount) + ' matches.')
 
 
