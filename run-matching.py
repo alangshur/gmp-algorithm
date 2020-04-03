@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+import time
 import csv
 import uuid
 import random
@@ -14,8 +16,17 @@ from firebase_admin import firestore
 
 # IMPORTANT CONSTANTS
 TARGET_MATCHING = '4-3-2020'
-
-
+EMAIL_HTML="""
+<div>Hello there,</div>
+<br><br>
+<div>The algorithm has finished running and your match has been determined.</div>
+<br>
+<a href="https://globalmatchingproject.com">View Your Match</a>
+<br><br><br>
+<div>Sincerely,</div>
+<br>
+<div>The Global Matching Project</div>
+"""
 
 def createMatch(db, users):
     matchId = uuid.uuid1()
@@ -40,12 +51,21 @@ def createMatch(db, users):
         'users': filteredUsers
     })
 
-    # update users
+    # update/email users
     for user in users:
         userRef = db.collection('users').document(user[0])
         batch.update(userRef, {
             'currentMatching': TARGET_MATCHING,
             'currentMatchId': matchId
+        })
+
+        emailRef = db.collections('mail').doc()
+        batch.set(emailRef, {
+            'to': user[2],
+            'message': {
+                'subject': 'You\'re match is in!',
+                'html': EMAIL_HTML
+            }
         })
 
     # commit batch write
