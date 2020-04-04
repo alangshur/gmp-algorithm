@@ -11,7 +11,7 @@ from google.api_core.datetime_helpers import to_microseconds, from_microseconds
 
 
 # IMPORTANT CONSTANTS
-TARGET_MATCHING = '4-3-2020'
+TARGET_MATCHING = '4-10-2020'
 
 
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         cred = credentials.Certificate('./private-key.json')
         firebase_admin.initialize_app(cred)
         db = firestore.client()
-        print('Connected app to firestore...')
+        print('Connected app to firestore...\n')
                 
         # start listener
         listener = handleSignups(db)

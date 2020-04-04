@@ -15,12 +15,11 @@ from firebase_admin import firestore
 
 
 # IMPORTANT CONSTANTS
-TARGET_MATCHING = '4-3-2020'
+TARGET_MATCHING = '4-10-2020'
 EMAIL_HTML="""
 <div>Hello there,</div>
 <br><br>
 <div>The algorithm has finished running and your match has been determined.</div>
-<br>
 <a href="https://globalmatchingproject.com">View Your Match</a>
 <br><br><br>
 <div>Sincerely,</div>
@@ -28,9 +27,22 @@ EMAIL_HTML="""
 <div>The Global Matching Project</div>
 """
 
-def createMatch(db, users):
-    matchId = uuid.uuid1()
-    batch = db.batch()
+
+
+def queueSignups(signupQueue, path):
+
+    # read signups
+    with open(path, 'r', newline='') as bucketFile:
+        reader = csv.reader(bucketFile)
+        signups = list(reader)
+
+    # shuffle and queue signups
+    random.shuffle(signups)
+    signupQueue.extend(signups)
+
+
+def createMatch(db, batch, users):
+    matchId = str(uuid.uuid1())
 
     # filter users
     filteredUsers = {}
@@ -59,7 +71,7 @@ def createMatch(db, users):
             'currentMatchId': matchId
         })
 
-        emailRef = db.collections('mail').doc()
+        emailRef = db.collection('mail').document()
         batch.set(emailRef, {
             'to': user[2],
             'message': {
@@ -68,78 +80,76 @@ def createMatch(db, users):
             }
         })
 
-    # commit batch write
-    batch.commit()
-
-
-def queueSignups(signupQueue, path):
-
-    # read signups
-    with open(path, 'r', newline='') as bucketFile:
-        reader = csv.reader(bucketFile)
-        signups = list(reader)
-
-    # shuffle and queue signups
-    random.shuffle(signups)
-    signupQueue.extend(signups)
-
 
 def runAlgorithm(db):
-    signupQueue = deque()
-    matchCount = 0
-    bucketFile = 0
+    try:
 
-    # loop over age buckets
-    for age in range(16, 110, 2):
-        ageBucket = str(age) + '-' + str(age + 1)
+        signupQueue = deque()
+        batch = db.batch()
+        matchCount = 0
+        bucketCount = 0
 
-        # loop over placement buckets
-        for placementBuckets in product(range(3), repeat=6):
-            bucketFile += 1
+        # loop over age buckets
+        for age in range(16, 110, 2):
+            ageBucket = str(age) + '-' + str(age + 1)
 
-            # construct path
-            path = './signup-data/' + TARGET_MATCHING + '/' + ageBucket
-            for bucket in placementBuckets[:-1]: path += '/' + str(bucket)
-            path += '/' + str(placementBuckets[-1]) + '.csv'
+            # loop over placement buckets
+            for placementBuckets in product(range(3), repeat=6):
+                bucketCount += 1
 
-            # queue new signups
-            if Path(path).is_file(): 
-                queueSignups(signupQueue, path)
-            
-            # build matches from deque
-            bucketMatchCount = 0
-            while len(signupQueue) >= 10:
-                matchCount += 1
-                bucketMatchCount += 1
+                # construct path
+                path = './signup-data/' + TARGET_MATCHING + '/' + ageBucket
+                for bucket in placementBuckets[:-1]: path += '/' + str(bucket)
+                path += '/' + str(placementBuckets[-1]) + '.csv'
 
-                createMatch(db, [
+                # queue new signups
+                if Path(path).is_file():
+                    queueSignups(signupQueue, path)
+
+                # build deque matches
+                while len(signupQueue) >= 10:
+                    matchCount += 1                
+                    createMatch(db, batch, [
+                        signupQueue.popleft(),
+                        signupQueue.popleft(),
+                        signupQueue.popleft(),
+                        signupQueue.popleft()
+                    ])
+
+                    # commit new batch
+                    if matchCount % 50 == 0:
+                        batch.commit()
+                        batch = db.batch()
+                        print('Progress: ' + str(round(bucketCount / 34263 * 100, 3)) + '%')
+                        print('Total matches: ' + str(matchCount) + '\n')
+
+        # write overflow matches
+        while len(signupQueue) > 0:
+            matchCount += 1
+
+            if len(signupQueue) % 3 == 0:
+                createMatch(db, batch, [
+                    signupQueue.popleft(),
+                    signupQueue.popleft(),
+                    signupQueue.popleft()
+                ])
+            else:
+                createMatch(db, batch, [
                     signupQueue.popleft(),
                     signupQueue.popleft(),
                     signupQueue.popleft(),
                     signupQueue.popleft()
                 ])
-            
-            print('File ' + str(bucketFile) + '/34263: Created ' \
-                + str(bucketMatchCount) + ' matches.')
 
-    while len(signupQueue) > 0:
-        if len(signupQueue) % 3 == 0:
-            createMatch(db, [
-                signupQueue.popleft(),
-                signupQueue.popleft(),
-                signupQueue.popleft()
-            ])
-        else:
-            createMatch(db, [
-                signupQueue.popleft(),
-                signupQueue.popleft(),
-                signupQueue.popleft(),
-                signupQueue.popleft()
-            ])
+        # flush writes
+        batch.commit()
+        print('----------------------------------------------')
+        print('Algorithm finished! Created ' + str(matchCount) + ' matches.')
+        print('----------------------------------------------')
 
-    print('Algorithm finished! Created ' + str(matchCount) + ' matches.')
-
-
+    except Exception as error:
+        print('Algorithm failed at bucket ' + str(bucketCount))
+        raise error
 
 if __name__ == '__main__':
     try:
@@ -148,10 +158,10 @@ if __name__ == '__main__':
         cred = credentials.Certificate('./private-key.json')
         firebase_admin.initialize_app(cred)
         db = firestore.client()
-        print('Connected app to firestore...')
+        print('Connected app to firestore...\n')
 
         # initiate algorithm
         runAlgorithm(db)
-
+        
     except Exception as error:
         print('ERROR: ' + str(error))
