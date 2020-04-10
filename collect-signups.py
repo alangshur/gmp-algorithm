@@ -11,7 +11,7 @@ from google.api_core.datetime_helpers import to_microseconds, from_microseconds
 
 
 # IMPORTANT CONSTANTS
-TARGET_MATCHING = '4-10-2020'
+TARGET_MATCHING = '4-17-2020'
 
 
 
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         firebase_admin.initialize_app(cred)
         db = firestore.client()
         print('Connected app to firestore...\n')
-                
+
         # start listener
         listener = handleSignups(db)
         while True:

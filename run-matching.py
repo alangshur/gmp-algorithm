@@ -15,7 +15,7 @@ from firebase_admin import firestore
 
 
 # IMPORTANT CONSTANTS
-TARGET_MATCHING = '4-10-2020'
+TARGET_MATCHING = '4-17-2020'
 EMAIL_HTML="""
 <div>Hello there,</div>
 <br><br>
